@@ -191,9 +191,7 @@
       }
     });
     save(); render();
-    const btn = document.getElementById('refreshBtn');
-    btn.classList.add('hide');
-    toast('已刷新可变块，按钮已隐藏（刷新网页可再次使用）');
+    toast('已刷新可变块');
   }
 
   async function copyAll(){
