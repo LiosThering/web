@@ -201,7 +201,7 @@
       if(b.type==='fixed') return (b.text||'').trim();
       return (b.current||'').trim();
     }).filter(s=>s.length);
-    const text = parts.join('\n\n— — —\n\n');
+    const text = parts.join('');
     if(!text){ toast('还没有可复制的内容'); return; }
     try{
       await navigator.clipboard.writeText(text);
