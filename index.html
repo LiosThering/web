@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的简便网页</title>
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --text:#1f2329; --muted:#6b7280; --border:#e5e7eb;
+    --accent:#4f7cff; --shadow:0 1px 3px rgba(0,0,0,.08),0 6px 18px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);padding:24px 16px 60px;}
+  .wrap{max-width:880px;margin:0 auto;}
+  header{text-align:center;margin-bottom:28px;}
+  header h1{font-size:26px;margin:0 0 8px;}
+  header p{color:var(--muted);margin:0;font-size:15px;}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:10px;transition:transform .15s ease,box-shadow .15s ease;}
+  .card:hover{transform:translateY(-3px);box-shadow:0 4px 10px rgba(0,0,0,.1),0 12px 28px rgba(0,0,0,.08);}
+  .badge{display:inline-block;align-self:flex-start;background:#eef2ff;color:var(--accent);font-weight:700;font-size:13px;padding:3px 10px;border-radius:999px;}
+  .card h2{font-size:18px;margin:0;}
+  .card .desc{color:var(--muted);font-size:14px;line-height:1.5;margin:0;flex:1;}
+  .open{display:inline-block;text-align:center;text-decoration:none;background:var(--accent);color:#fff;padding:9px 0;border-radius:10px;font-size:14px;font-weight:600;}
+  .open:active{opacity:.85}
+  .empty{color:var(--muted);text-align:center;padding:40px 0;}
+  footer{text-align:center;color:var(--muted);font-size:13px;margin-top:30px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>我的简便网页</h1>
+    <p>从 9999 到 0，慢慢积累的小工具。点开就能用，手机也适配。</p>
+  </header>
+  <div class="grid" id="grid"></div>
+  <footer>新增网页：建一个编号文件夹（如 9998）放 index.html，并在下面 SITES 里加一行。</footer>
+</div>
+<script>
+  // 在这里维护你的网页清单：id 是文件夹名，name 是标题，desc 是说明
+  const SITES = [
+    { id: '9999', name: '内容块生成器', desc: '像搭积木一样生成「固定 / 可变」内容块，一键复制到剪贴板；左下橙黄刷新、右下浅绿复制。' },
+    // { id: '9998', name: '示例工具', desc: '在这里写说明。' },
+  ];
+  const grid = document.getElementById('grid');
+  if (SITES.length === 0) {
+    grid.innerHTML = '<div class="empty">还没有网页，先建一个编号文件夹吧。</div>';
+  } else {
+    SITES.forEach(s => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML =
+        '<span class="badge">' + s.id + '</span>' +
+        '<h2>' + s.name + '</h2>' +
+        '<p class="desc">' + s.desc + '</p>' +
+        '<a class="open" href="./' + s.id + '/">打开 →</a>';
+      grid.appendChild(card);
+    });
+  }
+</script>
+</body>
+</html>
