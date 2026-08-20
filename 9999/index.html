@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>内容块生成器</title>
+<style>
+  :root{
+    --bg:#f6f7f9;
+    --card:#ffffff;
+    --text:#1f2329;
+    --muted:#8a9099;
+    --border:#e6e8eb;
+    --refresh:#f5a623;
+    --copy:#7ed957;
+    --shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--text);line-height:1.5;
+    padding:18px 16px 130px;
+  }
+  .wrap{max-width:720px;margin:0 auto;}
+  header{margin-bottom:16px;}
+  header h1{font-size:22px;margin:0 0 4px;font-weight:700;}
+  header p{margin:0;color:var(--muted);font-size:14px;}
+  .controls{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+  .btn{
+    border:none;border-radius:12px;padding:11px 16px;font-size:15px;font-weight:600;
+    cursor:pointer;color:#fff;box-shadow:var(--shadow);transition:transform .08s ease,filter .15s ease;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn:hover{filter:brightness(1.03);}
+  .btn-fixed{background:#4f7cff;}
+  .btn-var{background:#9b6dff;}
+  .block{
+    background:var(--card);border:1px solid var(--border);border-radius:16px;
+    padding:14px;margin-bottom:14px;box-shadow:var(--shadow);
+  }
+  .block-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+  .badge{font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;}
+  .badge-fixed{background:#eaf0ff;color:#3d63d6;}
+  .badge-var{background:#f1eaff;color:#7a4ddb;}
+  .del{
+    border:none;background:transparent;color:var(--muted);font-size:13px;cursor:pointer;padding:4px 6px;
+  }
+  .del:hover{color:#e5484d;}
+  textarea{
+    width:100%;border:1px solid var(--border);border-radius:12px;padding:11px;
+    font:inherit;font-size:16px;resize:vertical;min-height:64px;background:#fafbfc;color:var(--text);
+  }
+  textarea:focus{outline:none;border-color:#c7ccd4;background:#fff;}
+  .hint{font-size:12px;color:var(--muted);margin-bottom:6px;}
+  .current{
+    margin-top:10px;padding:10px 12px;background:#f4fbf2;border:1px dashed #bfe6b0;border-radius:12px;
+  }
+  .cur-label{font-size:12px;color:#5a9e3f;font-weight:700;}
+  .cur-text{margin-top:4px;font-size:15px;white-space:pre-wrap;word-break:break-word;}
+  .fab{
+    position:fixed;bottom:calc(20px + env(safe-area-inset-bottom));
+    width:58px;height:58px;border-radius:50%;border:none;cursor:pointer;
+    box-shadow:0 6px 18px rgba(0,0,0,.22);display:flex;align-items:center;justify-content:center;
+    transition:opacity .35s ease,transform .35s ease;z-index:50;
+  }
+  .fab:active{transform:scale(.92);}
+  .fab-refresh{left:20px;background:var(--refresh);animation:pulseR 2.4s ease-in-out infinite;}
+  .fab-copy{right:20px;background:var(--copy);animation:pulseG 2.4s ease-in-out infinite;}
+  .fab.hide{opacity:0;pointer-events:none;transform:scale(.4);}
+  @keyframes pulseR{0%,100%{box-shadow:0 6px 18px rgba(245,166,35,.45);}50%{box-shadow:0 6px 26px rgba(245,166,35,.75);}}
+  @keyframes pulseG{0%,100%{box-shadow:0 6px 18px rgba(126,217,87,.45);}50%{box-shadow:0 6px 26px rgba(126,217,87,.75);}}
+  #toast{
+    position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(10px);
+    background:rgba(31,35,41,.92);color:#fff;font-size:14px;padding:10px 18px;border-radius:999px;
+    opacity:0;pointer-events:none;transition:opacity .25s ease,transform .25s ease;z-index:60;max-width:90vw;text-align:center;
+  }
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  @media (max-width:480px){
+    .fab{width:54px;height:54px;}
+    header h1{font-size:20px;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>内容块生成器</h1>
+    <p>像搭积木一样生成「固定 / 可变」内容块，一键复制。手机也能用。</p>
+  </header>
+
+  <div class="controls">
+    <button class="btn btn-fixed" id="addFixed">+ 固定块</button>
+    <button class="btn btn-var" id="addVar">+ 可变块</button>
+  </div>
+
+  <div id="blocks"></div>
+</div>
+
+<button class="fab fab-refresh" id="refreshBtn" title="刷新可变块（随机重抽一次后隐藏）" aria-label="刷新">
+  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M23 4v6h-6"/><path d="M1 20v-6h6"/>
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+  </svg>
+</button>
+
+<button class="fab fab-copy" id="copyBtn" title="复制所有块内容" aria-label="复制">
+  <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="9" y="9" width="13" height="13" rx="2.4"/>
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+  </svg>
+</button>
+
+<div id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+  const STORAGE_KEY = 'content-blocks-v1';
+  let blocks = [];
+
+  function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+  function firstLine(pool){
+    const lines = (pool||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    return lines[0]||'';
+  }
+  function defaultBlocks(){
+    return [
+      {id:uid(),type:'fixed',text:'在这里输入固定内容，刷新后不会改变。\n例如：会议纪要、固定说明、标题等。'},
+      {id:uid(),type:'variable',pool:'方案 A：先小范围试点\n方案 B：直接全面推广\n方案 C：维持现状继续观察',current:''}
+    ];
+  }
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      blocks = raw ? JSON.parse(raw) : defaultBlocks();
+    }catch(e){ blocks = defaultBlocks(); }
+    if(!Array.isArray(blocks)) blocks = defaultBlocks();
+    blocks.forEach(b=>{ if(b.type==='variable' && !b.current) b.current = firstLine(b.pool); });
+  }
+  function save(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(blocks)); }catch(e){} }
+
+  function render(){
+    const c = document.getElementById('blocks');
+    c.innerHTML='';
+    blocks.forEach(b=>{
+      const card = document.createElement('div'); card.className='block';
+
+      const head = document.createElement('div'); head.className='block-head';
+      const badge = document.createElement('span');
+      badge.className = 'badge ' + (b.type==='fixed'?'badge-fixed':'badge-var');
+      badge.textContent = b.type==='fixed' ? '固定块' : '可变块';
+      const del = document.createElement('button'); del.className='del'; del.textContent='删除';
+      del.onclick = ()=>{ blocks = blocks.filter(x=>x.id!==b.id); save(); render(); };
+      head.appendChild(badge); head.appendChild(del);
+      card.appendChild(head);
+
+      if(b.type==='fixed'){
+        const ta = document.createElement('textarea');
+        ta.value = b.text||''; ta.placeholder='输入固定内容…';
+        ta.oninput = ()=>{ b.text = ta.value; save(); };
+        card.appendChild(ta);
+      } else {
+        const hint = document.createElement('div'); hint.className='hint';
+        hint.textContent='候选内容（每行一个，刷新时随机选取）';
+        const ta = document.createElement('textarea');
+        ta.value = b.pool||''; ta.placeholder='每行一个候选…';
+        ta.oninput = ()=>{ b.pool = ta.value; if(!b.current) b.current = firstLine(b.pool); save(); };
+        const cur = document.createElement('div'); cur.className='current';
+        const cl = document.createElement('div'); cl.className='cur-label'; cl.textContent='当前显示';
+        const ct = document.createElement('div'); ct.className='cur-text';
+        ct.textContent = (b.current||'').trim() || '（暂无候选）';
+        cur.appendChild(cl); cur.appendChild(ct);
+        card.appendChild(hint); card.appendChild(ta); card.appendChild(cur);
+      }
+      c.appendChild(card);
+    });
+  }
+
+  function addBlock(type){
+    if(type==='fixed') blocks.push({id:uid(),type:'fixed',text:''});
+    else blocks.push({id:uid(),type:'variable',pool:'',current:''});
+    save(); render();
+  }
+
+  function refreshAll(){
+    blocks.forEach(b=>{
+      if(b.type==='variable'){
+        const lines = (b.pool||'').split('\n').map(s=>s.trim()).filter(Boolean);
+        if(lines.length) b.current = lines[Math.floor(Math.random()*lines.length)];
+      }
+    });
+    save(); render();
+    const btn = document.getElementById('refreshBtn');
+    btn.classList.add('hide');
+    toast('已刷新可变块，按钮已隐藏（刷新网页可再次使用）');
+  }
+
+  async function copyAll(){
+    const parts = blocks.map(b=>{
+      if(b.type==='fixed') return (b.text||'').trim();
+      return (b.current||'').trim();
+    }).filter(s=>s.length);
+    const text = parts.join('\n\n— — —\n\n');
+    if(!text){ toast('还没有可复制的内容'); return; }
+    try{
+      await navigator.clipboard.writeText(text);
+    }catch(e){
+      const ta=document.createElement('textarea'); ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); }catch(_){}
+      ta.remove();
+    }
+    toast('已复制 '+parts.length+' 个块到剪贴板');
+  }
+
+  let toastTimer=null;
+  function toast(msg){
+    const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400);
+  }
+
+  document.getElementById('addFixed').onclick = ()=>addBlock('fixed');
+  document.getElementById('addVar').onclick   = ()=>addBlock('variable');
+  document.getElementById('refreshBtn').onclick = refreshAll;
+  document.getElementById('copyBtn').onclick   = copyAll;
+
+  load(); render();
+})();
+</script>
+</body>
+</html>
