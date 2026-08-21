@@ -1,0 +1,8 @@
+# WorkBuddy 本地数据（记忆 / 配置），禁止上传
+.workbuddy/
+
+# 临时文件
+err.txt
+*.log
+Thumbs.db
+.DS_Store
