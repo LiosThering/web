@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>HTML 即时预览器</title>
+<style>
+  :root{
+    --bg:#f6f7f9;
+    --panel:#ffffff;
+    --text:#1f2329;
+    --muted:#8a9099;
+    --border:#e6e8eb;
+    --accent:#4f7cff;
+    --shadow:0 1px 2px rgba(0,0,0,.06),0 8px 24px rgba(0,0,0,.06);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--text);display:flex;flex-direction:column;height:100vh;overflow:hidden;
+  }
+  header{padding:12px 16px;border-bottom:1px solid var(--border);background:var(--panel);}
+  header h1{font-size:18px;margin:0 0 2px;font-weight:700;}
+  header p{margin:0;color:var(--muted);font-size:13px;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--border);}
+  .btn{
+    border:none;border-radius:10px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer;color:#fff;
+    background:var(--accent);box-shadow:var(--shadow);transition:transform .08s ease,filter .15s ease;
+  }
+  .btn:active{transform:scale(.97);}
+  .btn:hover{filter:brightness(1.03);}
+  .btn.ghost{background:#eef0f3;color:#3a3f47;}
+  .btn.run{background:#7ed957;color:#1f3a13;}
+  .main{flex:1;display:flex;min-height:0;}
+  .editor-pane{width:42%;min-width:0;display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--panel);}
+  .editor-pane .label{padding:8px 14px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border);}
+  textarea#code{
+    flex:1;width:100%;border:none;padding:14px;resize:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:14px;line-height:1.55;color:#1f2329;background:#fbfbfc;outline:none;
+  }
+  .preview-pane{flex:1;min-width:0;display:flex;flex-direction:column;background:#fff;}
+  .preview-pane .label{padding:8px 14px;font-size:12px;color:var(--muted);border-bottom:1px solid var(--border);}
+  iframe#preview{flex:1;width:100%;border:none;background:#fff;}
+  .hint{font-size:12px;color:var(--muted);padding:6px 14px;}
+  /* 演示模式：隐藏编辑区与工具，仅留全屏预览 */
+  body.present .toolbar,
+  body.present header,
+  body.present .editor-pane{display:none;}
+  body.present .preview-pane{border:none;}
+  body.present .preview-pane .label{display:none;}
+  @media (max-width:760px){
+    .main{flex-direction:column;}
+    .editor-pane{width:100%;height:38%;border-right:none;border-bottom:1px solid var(--border);}
+    .preview-pane{height:62%;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>HTML 即时预览器</h1>
+  <p>把 HTML 粘进去就当代码执行渲染；刷新网页即清空，不缓存。</p>
+</header>
+
+<div class="toolbar">
+  <button class="btn run" id="runBtn">▶ 运行</button>
+  <button class="btn" id="presentBtn">⛶ 演示模式</button>
+  <button class="btn ghost" id="sampleBtn">载入示例</button>
+  <button class="btn ghost" id="clearBtn">清空</button>
+</div>
+
+<div class="main">
+  <div class="editor-pane">
+    <div class="label">在此粘贴 / 编写 HTML（含 &lt;style&gt;、&lt;script&gt; 均可执行）</div>
+    <textarea id="code" spellcheck="false" placeholder="在此粘贴 HTML 代码…"></textarea>
+  </div>
+  <div class="preview-pane" id="previewPane">
+    <div class="label">实时预览</div>
+    <iframe id="preview" sandbox="allow-scripts allow-modals"></iframe>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const code = document.getElementById('code');
+  const preview = document.getElementById('preview');
+  const previewPane = document.getElementById('previewPane');
+
+  const SAMPLE = [
+    '<style>',
+    '  body{margin:0;font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;}',
+    '  .slide{height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;',
+    '         text-align:center;padding:24px;box-sizing:border-box;}',
+    '  .s1{background:linear-gradient(135deg,#4f7cff,#9b6dff);color:#fff;}',
+    '  .s2{background:#f6f7f9;color:#1f2329;}',
+    '  h1{font-size:clamp(32px,7vw,56px);margin:0 0 14px;}',
+    '  p{font-size:clamp(16px,3.5vw,24px);margin:0;}',
+    '</style>',
+    '',
+    '<section class="slide s1">',
+    '  <h1>第一页标题</h1>',
+    '  <p>把代码粘进来，就像 PPT 一样展示</p>',
+    '</section>',
+    '',
+    '<section class="slide s2">',
+    '  <h1>第二页</h1>',
+    '  <p>往下滚动就是下一页，配合「演示模式」全屏</p>',
+    '</section>'
+  ].join('\n');
+
+  function buildDoc(src){
+    const t = (src||'').trim();
+    if(/^<!DOCTYPE|^<html/i.test(t)) return t;               // 已是完整文档，原样执行
+    return '<!DOCTYPE html><html><head><meta charset="utf-8"></head><body>' + src + '</body></html>';
+  }
+
+  function render(){
+    const html = code.value;
+    if(!html.trim()){ preview.srcdoc = '<!DOCTYPE html><meta charset="utf-8"><body style="font-family:sans-serif;color:#999;display:flex;align-items:center;justify-content:center;height:100vh;margin:0">预览区（运行后显示）</body>'; return; }
+    preview.srcdoc = buildDoc(html);
+  }
+
+  // 输入时防抖自动渲染
+  let timer=null;
+  code.addEventListener('input', function(){
+    clearTimeout(timer);
+    timer = setTimeout(render, 350);
+  });
+
+  document.getElementById('runBtn').onclick = render;
+
+  document.getElementById('sampleBtn').onclick = function(){
+    code.value = SAMPLE; render();
+  };
+
+  document.getElementById('clearBtn').onclick = function(){
+    code.value = ''; render(); code.focus();
+  };
+
+  document.getElementById('presentBtn').onclick = function(){
+    document.body.classList.toggle('present');
+    if(document.body.classList.contains('present')){
+      const el = previewPane;
+      if(el.requestFullscreen) el.requestFullscreen().catch(function(){});
+      else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+    } else {
+      if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    }
+  };
+
+  // 初始载入示例，方便直接看效果（刷新后不会保留你粘贴的内容）
+  code.value = SAMPLE;
+  render();
+})();
+</script>
+</body>
+</html>
