@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 牌桌</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body class="scene-lobby">
+
+<!-- ══ 启动层①：选玩法 ═══════════════════════════════════════════════
+     纯黑、字大、留白大 —— 黑底白字里按钮就是唯一的视觉元素。
+     这里**只列玩法名**，竖着排一行一个：介绍、人数、谁上场都放到里面那一页去。
+     一屏摊开五张卡时，介绍文字把名字淹了，要看哪个玩法得先读完五段说明。 -->
+<div class="screen lobby">
+  <h2>AI 牌桌</h2>
+  <div class="modes" id="modes"></div>
+</div>
+
+<!-- ══ 启动层②：玩法的样子 + 选谁和你玩 ═══════════════════════════════
+     点进某个玩法之后才展开：这个玩法叫什么、怎么玩、几个人、谁上场。
+     选中顺序 = 落座顺序（先选的坐第一个座位）。 -->
+<div class="screen pick">
+  <div class="pickbar">
+    <button class="tbtn" id="pick-back">← 返回</button>
+    <div class="pkt">
+      <h2 id="pick-rule"></h2>
+      <p class="desc" id="pick-desc"></p>
+    </div>
+    <span class="grow" id="pick-count"></span>
+  </div>
+  <div class="pickrow" id="pick-row">
+    <span class="lbl">人数</span>
+    <div class="picks" id="pick-players"></div>
+  </div>
+  <div class="roster" id="pick-roster"></div>
+  <div class="pickfoot">
+    <button class="tbtn" id="roster-import">导入名册</button>
+    <button class="tbtn" id="roster-export">导出名册</button>
+    <button class="tbtn" id="roster-new">新建智能体</button>
+    <span class="note" id="pick-note"></span>
+    <button class="tbtn primary" id="pick-start">开始游戏</button>
+  </div>
+  <input type="file" id="roster-file" accept=".json,application/json" hidden>
+</div>
+
+<!-- ══ 局内：顶栏 ═══════════════════════════════════════════════════ -->
+<header class="topbar">
+  <div class="brand">
+    <h1>AI 牌桌</h1>
+    <span id="rule-name" class="tag"></span>
+    <span id="rule-status" class="status"></span>
+  </div>
+  <span id="rule-desc" class="rule-desc"></span>
+  <button id="btn-lobby" class="btn">返回大厅</button>
+  <button id="btn-new" class="btn primary">新开一局</button>
+</header>
+
+<!-- ══ 局内：牌桌 ═══════════════════════════════════════════════════
+     舞台里只有一张 canvas：桌面底图、立绘、名牌、出牌区、牌、气泡
+     全部由 js/render/table.js 画。 -->
+<main class="layout">
+  <section class="board">
+    <div class="stage">
+      <canvas id="table-canvas"></canvas>
+      <!-- 操作坞。它**贴在玩家出牌区（金色虚线框）的上沿**，而不是挂到画布
+           下面的黑条里 —— 牌桌上的每一步都在桌面上完成，"叫 3 分"这种选择
+           跑到屏幕最底下，读起来像另一个界面的东西。
+           贴的基准 `--play-top` 是渲染层量出来的玩家出牌区上沿：写死像素的话，
+           窗口一改、人数一换，坞就会压住自己的牌。 -->
+      <div class="dock">
+        <div class="hint" id="hint"></div>
+        <div id="action-bar" class="action-bar"></div>
+        <div class="ctl-row">
+          <input id="say-input" type="text" placeholder="说点什么（发言不消耗回合）" autocomplete="off">
+          <button id="btn-say" class="btn">发言</button>
+          <button id="btn-play" class="btn primary">出牌</button>
+          <button id="btn-endturn" class="btn">结束回合</button>
+          <button id="btn-fold" class="btn danger">认输</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="handle" id="handle">设 置</div>
+
+<!-- ══ 抽屉式侧栏：收起时只剩右缘那个把手 ═════════════════════════ -->
+<aside class="drawer" id="drawer">
+  <details class="panel" open>
+    <summary>接口设置</summary>
+    <div class="panel-body">
+      <label class="field">服务商
+        <select id="cfg-provider"></select>
+      </label>
+      <p class="note" id="cfg-direct"></p>
+      <p class="note" id="cfg-note"></p>
+      <label class="field">API Key
+        <input id="cfg-key" type="password" placeholder="sk-..." autocomplete="off">
+      </label>
+      <label class="field">接口地址
+        <input id="cfg-baseurl" placeholder="https://api.deepseek.com/v1" autocomplete="off">
+      </label>
+      <label class="field">模型
+        <div class="field-row">
+          <select id="cfg-model-select"></select>
+          <button id="cfg-model-fetch" class="btn small" type="button" title="从接口读取可用模型清单">拉取</button>
+        </div>
+      </label>
+      <label class="field">或自己写模型名
+        <input id="cfg-model" placeholder="比如 deepseek-v4-flash" autocomplete="off">
+      </label>
+      <p class="note" id="cfg-model-note"></p>
+      <label class="check">
+        <input id="cfg-breach" type="checkbox" checked>
+        <span>允许智能体破例（抢牌、多出一张等违规动作，代价自担）</span>
+      </label>
+      <label class="field">胜率引擎
+        <select id="cfg-engine"></select>
+      </label>
+      <p class="note" id="cfg-engine-note"></p>
+      <label class="check">
+        <input id="cfg-godview" type="checkbox">
+        <span>上帝视角（看穿所有人的牌，仅用于调试）</span>
+      </label>
+      <p class="warn">Key 只保存在本机浏览器里，不会上传到任何地方。但请不要把它连同这个页面一起公开分享。不填 Key 也能开局：智能体会自动改走本地策略，每回合挑胜率最高的合法动作，绝不违规。胜率引擎的采样全部在你的浏览器里跑，不会发出任何请求。</p>
+    </div>
+  </details>
+
+  <details class="panel">
+    <summary>开局设置</summary>
+    <div class="panel-body">
+      <label class="field">玩法
+        <select id="rule-select"></select>
+      </label>
+      <label class="field">玩家人数（含你自己）
+        <select id="setup-players"></select>
+      </label>
+      <label class="field">种子来源
+        <select id="seed-source"></select>
+      </label>
+      <label class="field">随机种子
+        <input id="setup-seed" type="text" placeholder="留空则每局都不同" autocomplete="off">
+      </label>
+      <p class="note" id="seed-note"></p>
+      <p class="note" id="setup-note">改动后需点「新开一局」生效。</p>
+      <p class="note">谁上场、叫什么、什么脾气 —— 回大厅的「选谁和你玩」里改。</p>
+    </div>
+  </details>
+
+  <div class="panel">
+    <div class="panel-title">智能体</div>
+    <div id="agents" class="agent-list"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">胜率引擎</div>
+    <div id="engine-panel" class="engine-panel"></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">牌桌记录</div>
+    <div id="timeline" class="timeline"></div>
+  </div>
+</aside>
+
+<!-- ══ 编辑 / 新建智能体 ════════════════════════════════════════════
+     没有这一块，导入一份名册之后发现"形象配错了"就只能改 JSON 再导一遍 ——
+     「形象从现有形象里选」得落在界面上，不能只落在数据格式里。 -->
+<div class="editmask" id="editmask">
+  <div class="editbox">
+    <h3 id="edit-title">编辑智能体</h3>
+    <label class="fld">名字
+      <input id="edit-name" placeholder="比如 老千" autocomplete="off" maxlength="24">
+    </label>
+    <div class="fld">形象（从现有形象里选）
+      <div class="avpick" id="edit-avatars"></div>
+    </div>
+    <label class="fld">人设（会写进提示词，影响他怎么打牌、怎么说话）
+      <textarea id="edit-persona" rows="4" spellcheck="false"
+                placeholder="比如 牌桌上混了二十年的老手，说话简短带刺。"></textarea>
+    </label>
+    <div class="editfoot">
+      <button class="tbtn danger" id="edit-del">删除这位</button>
+      <span class="grow"></span>
+      <button class="tbtn" id="edit-cancel">取消</button>
+      <button class="tbtn primary" id="edit-save">保存</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

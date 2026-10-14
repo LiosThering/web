@@ -1,0 +1,865 @@
+/* ==========================================================================
+   AI 牌桌 — 深色主题
+
+   两块底色完全不同的界面，靠 body 上的场景类切换：
+     .scene-lobby / .scene-pick   纯黑启动层（黑底白字）
+     .scene-table                 牌桌 + 抽屉式侧栏
+   局内的东西（顶栏、牌桌、抽屉把手）在启动层里一律让位 ——
+   局还没开，它们就不该出现。
+   ========================================================================== */
+
+:root {
+  --bg: #07080a;
+  --panel: #14161b;
+  --panel2: #1a1d24;
+  --line: #262a33;
+  --line2: #3b4150;
+  --ink: #e8e6e1;
+  --dim: #8b8f9a;
+  --faint: #6a6f7a;
+  --gold: #c9a227;
+  --accent: #e0b64a;
+  --danger: #d98a8a;
+  --ok: #5fb894;
+  --radius: 8px;
+  --drawer: 348px;
+}
+
+* { box-sizing: border-box; }
+
+html, body { height: 100%; margin: 0; }
+
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- 启动层 */
+
+.screen {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #07080a;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 36px 28px;
+  overflow-y: auto;
+}
+
+body.scene-lobby .screen.lobby,
+body.scene-pick  .screen.pick { display: flex; }
+
+/* 非牌桌场景：顶栏、牌桌、抽屉把手全部让位 */
+body:not(.scene-table) .topbar,
+body:not(.scene-table) .layout,
+body:not(.scene-table) .handle,
+body:not(.scene-table) .drawer { display: none; }
+
+.screen h2 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  color: var(--ink);
+}
+
+.screen .sub { margin: 0; color: var(--dim); font-size: 13px; }
+
+/* ① 选玩法：**只有名字**，竖着排一行一个。
+   介绍、人数、谁上场全都挪进点进去那一页 —— 一屏平铺好几张卡时，
+   几段说明一起铺开，玩法名反倒成了每张卡上最小的一行字。 */
+.modes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  width: min(400px, 100%);
+}
+
+.mode {
+  width: 100%;
+  padding: 15px 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-size: 16px;
+  letter-spacing: 1.5px;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color .14s, background .14s, transform .14s;
+}
+
+.mode:hover {
+  border-color: var(--gold);
+  background: var(--panel2);
+  transform: translateY(-1px);
+}
+
+.picks { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.pick-chip {
+  border: 1px solid var(--line2);
+  background: #101217;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 4px 15px;
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color .14s, color .14s, background .14s;
+}
+
+.pick-chip:hover { border-color: var(--gold); color: var(--accent); background: #1e1a10; }
+
+/* 当前这一档要常亮 —— 只靠 hover 的话，一眼看不出"现在是几人局" */
+.pick-chip.on {
+  border-color: var(--gold);
+  background: #241e0f;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ② 玩法的样子（名字 / 介绍 / 人数）+ 选谁和你玩 */
+.pickbar {
+  width: min(920px, 100%);
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pickbar h2 { font-size: 20px; }
+.pickbar .grow {
+  flex: 0 0 auto;
+  min-width: 84px;
+  padding-top: 5px;
+  text-align: right;
+  color: var(--dim);
+  font-size: 12.5px;
+}
+
+/* 玩法名 + 一行介绍：这两样是"点进来才知道"的 */
+.pkt { flex: 1; min-width: 0; text-align: center; }
+.pkt .desc { margin: 7px 0 0; font-size: 12.5px; color: var(--dim); line-height: 1.7; }
+
+.pickrow {
+  width: min(920px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.pickrow .lbl { font-size: 12.5px; color: var(--faint); letter-spacing: 1px; }
+
+.roster {
+  width: min(920px, 100%);
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 6px 0;
+}
+
+.agcard {
+  width: 188px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color .14s, background .14s, box-shadow .14s;
+  position: relative;
+  text-align: left;
+}
+
+.agcard:hover { border-color: var(--line2); background: var(--panel2); }
+
+.agcard.on {
+  border-color: var(--gold);
+  background: #1e1a10;
+  box-shadow: 0 0 0 1px rgba(201, 162, 39, .35), 0 0 18px rgba(201, 162, 39, .18);
+}
+
+.agcard .port {
+  height: 138px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-top: 10px;
+  background: radial-gradient(ellipse 70% 62% at 50% 84%, rgba(201, 162, 39, .11), transparent 68%);
+}
+
+.agcard .port img {
+  max-height: 128px;
+  max-width: 88%;
+  display: block;
+  filter: drop-shadow(0 5px 9px rgba(0, 0, 0, .6));
+}
+
+.agcard .meta { padding: 9px 11px 11px; border-top: 1px solid var(--line); }
+
+.agcard .nm { font-size: 13.5px; font-weight: 600; display: flex; align-items: center; gap: 7px; }
+.agcard .ps {
+  font-size: 11.5px;
+  color: var(--dim);
+  line-height: 1.55;
+  margin-top: 5px;
+  height: 36px;
+  overflow: hidden;
+}
+
+/* 选中序号 = 落座顺序（先选的在左），所以它得显眼 */
+.agcard .no {
+  font-size: 11px;
+  color: var(--accent);
+  border: 1px solid #4a3c14;
+  background: #1e1a10;
+  border-radius: 999px;
+  min-width: 18px;
+  text-align: center;
+  padding: 0 5px;
+  visibility: hidden;
+  font-weight: 600;
+}
+
+.agcard.on .no { visibility: visible; }
+.agcard .av { font-size: 10.5px; color: var(--dim); margin-left: auto; }
+
+/* 形象被两位智能体重复占用：不是错误（可能是刻意的），
+   但同一局里两人长得一样就读不出谁是谁，挂一条提示 */
+.agcard .dupe {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  font-size: 10.5px;
+  color: #e0a63a;
+  background: rgba(32, 26, 14, .94);
+  border: 1px solid #4a3c14;
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+
+.agcard .pen {
+  background: none;
+  border: none;
+  color: #5a6070;
+  cursor: pointer;
+  font-size: 12px;
+  line-height: 1;
+  padding: 0 2px;
+  font-family: inherit;
+}
+
+.agcard .pen:hover { color: var(--accent); }
+
+.pickfoot { width: min(920px, 100%); display: flex; align-items: center; gap: 10px; margin-top: 4px; }
+.pickfoot .note { flex: 1; line-height: 1.55; margin: 0; }
+
+/* ---------------------------------------------------------------- 顶栏 */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 16px;
+  background: #0c0e12;
+  border-bottom: 1px solid var(--line);
+  flex-shrink: 0;
+  position: relative;
+  z-index: 30;
+}
+
+.brand { display: flex; align-items: baseline; gap: 8px; }
+
+.topbar h1 { font-size: 15px; font-weight: 600; margin: 0; letter-spacing: .5px; }
+
+.tag {
+  font-size: 12px;
+  color: var(--accent);
+  border: 1px solid #4a3c14;
+  background: #1e1a10;
+  border-radius: 4px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+/* 局面状态：地主是谁、几倍、底牌 —— 由规则包提供 */
+.status {
+  font-size: 12px;
+  color: #d8c07a;
+  background: #221d0e;
+  border: 1px solid #4a3c14;
+  border-radius: 4px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+
+.status:empty { display: none; }
+
+.rule-desc {
+  flex: 1;
+  font-size: 12px;
+  color: var(--dim);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- 布局 */
+
+.layout {
+  flex: 1;
+  display: block;
+  padding: 10px 10px 10px;
+  min-height: 0;
+}
+
+.board {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  min-height: 0;
+}
+
+/* 舞台：canvas 铺满，圆角裁边 —— 桌面底图是方的，四角要收进去 */
+.stage {
+  position: relative;
+  flex: 1;
+  min-height: 240px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #07070a;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .5);
+}
+
+#table-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* 操作坞：贴在玩家出牌区（金色虚线框）的上沿。
+   `--play-top` 是渲染层量出来的玩家出牌区上沿 —— 写死像素的话，
+   窗口一改尺寸、人数一换，这条坞就会压到自己的牌上。
+   它只占桌面中间这一条：左右两侧留给对手的出牌区，上下不碰任何立绘。 */
+.dock {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(100% - var(--play-top, 100%) + 10px);
+  width: min(720px, 90%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  z-index: 6;
+  /* 坞本身不吃事件：它横跨大半个桌面，吃掉的话底下的牌就点不着了。
+     坞里的每个控件自己把事件收回来。 */
+  pointer-events: none;
+}
+
+.dock > * { pointer-events: auto; max-width: 100%; }
+
+/* 提示行（「轮到你了」这类）：浮在桌面上的一条小胶囊 */
+.hint {
+  font-size: 12px;
+  color: #dcc689;
+  background: rgba(12, 14, 18, .74);
+  border: 1px solid rgba(201, 162, 39, .24);
+  border-radius: 999px;
+  padding: 3px 13px;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.hint:empty { display: none; }
+
+/* 常驻操作条：发言 / 出牌 / 结束回合 / 认输 */
+.ctl-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid rgba(255, 255, 255, .07);
+  border-radius: 12px;
+  background: rgba(10, 12, 16, .76);
+  backdrop-filter: blur(7px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .5);
+}
+
+.ctl-row input { flex: 1; min-width: 0; }
+
+/* 动作栏：斗地主的叫分、过牌这类没有手势入口的动作。
+   它是「这一步你选什么」，比常驻操作条更亮一点 —— 眼睛该先落在它上面 */
+.action-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  padding: 6px 10px;
+  border: 1px solid rgba(201, 162, 39, .3);
+  border-radius: 12px;
+  background: rgba(26, 21, 9, .82);
+  backdrop-filter: blur(7px);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, .5);
+}
+
+.action-bar:empty { display: none; }
+
+/* ---------------------------------------------------------------- 控件 */
+
+input, textarea, select, button { font-family: inherit; font-size: 13px; color: var(--ink); }
+
+input[type="text"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  width: 100%;
+  padding: 6px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #121418;
+  outline: none;
+}
+
+input:focus, textarea:focus, select:focus { border-color: var(--gold); }
+textarea { resize: vertical; line-height: 1.5; }
+
+/* 按钮：一层薄薄的垂直渐变 + 顶部内高光。
+   纯色平面在深色底上像一块砖 —— 有厚度才像"按得下去的东西"。 */
+.btn, .tbtn {
+  padding: 6px 14px;
+  border: 1px solid #333a47;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #242a35, #171b22);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .055);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color .14s, background .14s, box-shadow .14s;
+}
+
+.btn:hover:not(:disabled), .tbtn:hover:not(:disabled) {
+  border-color: #4a5264;
+  background: linear-gradient(180deg, #2d3442, #1d222c);
+}
+
+.btn:active:not(:disabled), .tbtn:active:not(:disabled) {
+  background: linear-gradient(180deg, #12161c, #1a1f28);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .5);
+}
+
+.btn:disabled, .tbtn:disabled {
+  opacity: .38;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* 主按钮（出牌 / 开始游戏）：金色实心 —— 一屏里它必须是最先被看到的那一个 */
+.btn.primary, .tbtn.primary {
+  background: linear-gradient(180deg, #e8c45e, #b28b24);
+  border-color: #7d6114;
+  color: #1a1405;
+  font-weight: 600;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .38), 0 3px 14px rgba(201, 162, 39, .25);
+}
+
+.btn.primary:hover:not(:disabled), .tbtn.primary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #f4d375, #c39a2c);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .45), 0 4px 18px rgba(201, 162, 39, .45);
+}
+
+.btn.primary:active:not(:disabled), .tbtn.primary:active:not(:disabled) {
+  background: linear-gradient(180deg, #b28b24, #d0aa3c);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .3);
+}
+
+/* 灰掉的主按钮不要还是金的 —— 金色在深色底上读作"现在就点我"，
+   禁用时必须整个褪成石头色，否则玩家会一直去点一个点不动的键 */
+.btn.primary:disabled, .tbtn.primary:disabled {
+  background: linear-gradient(180deg, #2b2b28, #1d1d1b);
+  border-color: #3a3a36;
+  color: #6f6f68;
+  box-shadow: none;
+}
+
+/* 认输 / 删除：暗红。它不该和普通按钮长得一样 —— 误点的代价太大 */
+.btn.danger, .tbtn.danger {
+  color: #e8a3a3;
+  border-color: #56282a;
+  background: linear-gradient(180deg, #2b191b, #1c1113);
+}
+
+.btn.danger:hover:not(:disabled), .tbtn.danger:hover:not(:disabled) {
+  color: #f6bcbc;
+  border-color: #8a3d3d;
+  background: linear-gradient(180deg, #3c1e20, #241315);
+}
+
+.btn.small { font-size: 12.5px; padding: 5px 12px; }
+
+/* ---------------------------------------------------------------- 抽屉 */
+
+.handle {
+  position: fixed;
+  top: 50%;
+  right: 0;
+  z-index: 41;
+  transform: translateY(-50%);
+  writing-mode: vertical-rl;
+  letter-spacing: 3px;
+  font-size: 12.5px;
+  color: var(--accent);
+  background: #161a21;
+  border: 1px solid var(--line);
+  border-right: none;
+  border-radius: 8px 0 0 8px;
+  padding: 14px 7px;
+  cursor: pointer;
+  user-select: none;
+  transition: right .28s cubic-bezier(.4, 0, .2, 1);
+}
+
+body.drawer-open .handle { right: var(--drawer); }
+.handle:hover { background: #1e232b; }
+
+/* 抽屉拉开时，牌桌让出宽度 */
+.layout { transition: padding-right .28s cubic-bezier(.4, 0, .2, 1); }
+body.drawer-open .layout { padding-right: calc(var(--drawer) + 10px); }
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: var(--drawer);
+  z-index: 40;
+  background: #0d0f13;
+  border-left: 1px solid var(--line);
+  transform: translateX(100%);
+  transition: transform .28s cubic-bezier(.4, 0, .2, 1);
+  overflow-y: auto;
+  padding: 12px 12px 40px;
+}
+
+body.drawer-open .drawer { transform: none; }
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 10px;
+  flex-shrink: 0;
+}
+
+.panel > summary {
+  padding: 9px 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  list-style: none;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.panel > summary::-webkit-details-marker { display: none; }
+
+.panel > summary::before {
+  content: "▸";
+  color: var(--faint);
+  margin-right: 6px;
+  display: inline-block;
+  transition: transform .15s;
+}
+
+.panel[open] > summary::before { transform: rotate(90deg); }
+
+.panel-body { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 9px; }
+
+.panel-title { padding: 9px 12px; font-size: 13px; font-weight: 600; border-bottom: 1px solid var(--line); }
+
+.field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--dim); }
+
+.field-row { display: flex; gap: 6px; align-items: stretch; }
+.field-row select { flex: 1; min-width: 0; }
+.field-row .btn { flex: 0 0 auto; white-space: nowrap; }
+
+.check { display: flex; align-items: flex-start; gap: 6px; font-size: 12px; color: var(--dim); cursor: pointer; }
+.check input { margin-top: 4px; }
+
+.note { margin: 0; font-size: 11.5px; color: var(--faint); line-height: 1.6; }
+
+.warn {
+  margin: 0;
+  font-size: 11.5px;
+  color: #d8c07a;
+  background: #221d0e;
+  border: 1px solid #4a3c14;
+  border-radius: 8px;
+  padding: 8px 10px;
+  line-height: 1.6;
+}
+
+/* ---------------------------------------------------------------- 智能体 */
+
+.agent-list { padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+
+.agent-card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.agent-head { display: flex; align-items: center; gap: 6px; }
+
+/* 有形象就放立绘缩略图；没有（兜底身份）才退回一个小色点 */
+.agent-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.agent-face {
+  width: 26px;
+  height: 34px;
+  object-fit: contain;
+  object-position: bottom;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, .6));
+}
+
+.agent-name { font-size: 13px; font-weight: 500; }
+.agent-stat { margin-left: auto; font-size: 11px; color: var(--faint); }
+.agent-persona { font-size: 12px; color: var(--dim); line-height: 1.5; }
+.agent-note { font-size: 11px; color: var(--ok); }
+.agent-err { font-size: 11px; color: var(--danger); }
+
+/* ---------------------------------------------------------------- 胜率引擎 */
+
+.engine-panel { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 8px; }
+.engine-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px; font-size: 12.5px; font-weight: 500; }
+.engine-sub { font-size: 11px; font-weight: 400; color: var(--faint); }
+.engine-empty { font-size: 12px; color: var(--faint); line-height: 1.55; }
+
+.engine-stat {
+  font-size: 11px;
+  color: var(--dim);
+  background: #191d24;
+  border-radius: 6px;
+  padding: 5px 8px;
+  line-height: 1.5;
+}
+
+.engine-rows { display: flex; flex-direction: column; gap: 3px; }
+
+/* 一行就是一条进度条：金色填充铺在底下当底，文字压在填充之上 */
+.engine-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: #191d24;
+  overflow: hidden;
+  font-size: 11.5px;
+  line-height: 1.6;
+}
+
+.engine-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  z-index: 0;
+  background: linear-gradient(90deg, #3a3012, #57471a);
+  pointer-events: none;
+}
+
+.engine-row > *:not(.engine-bar) { position: relative; z-index: 1; }
+
+.engine-pct { flex-shrink: 0; min-width: 42px; color: var(--accent); font-weight: 500; font-variant-numeric: tabular-nums; }
+.engine-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.engine-n { flex-shrink: 0; color: var(--faint); font-variant-numeric: tabular-nums; }
+
+.engine-tag { flex-shrink: 0; font-size: 10.5px; color: var(--accent); background: #221d0e; border: 1px solid #4a3c14; border-radius: 4px; padding: 0 5px; }
+.engine-tag.chosen { color: var(--ok); background: #10241d; border-color: #1d4436; }
+
+.engine-chosen { font-size: 12px; color: var(--ok); line-height: 1.5; }
+
+/* 没算出胜率的候选：说得清楚一点，别让人以为是漏了 */
+.engine-blank { font-size: 11.5px; color: var(--dim); background: #191d24; border-radius: 6px; padding: 6px 8px; line-height: 1.55; }
+
+.engine-note {
+  font-size: 11.5px;
+  color: #d8c07a;
+  background: #221d0e;
+  border: 1px solid #4a3c14;
+  border-radius: 8px;
+  padding: 7px 9px;
+  line-height: 1.55;
+}
+
+/* ---------------------------------------------------------------- 记录 */
+
+.timeline {
+  padding: 10px 12px 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  font-size: 12.5px;
+  line-height: 1.7;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tl-row { color: #b9bcc4; }
+.tl-me { color: var(--accent); }
+.tl-round { color: var(--faint); text-align: center; font-size: 11.5px; margin: 6px 0 2px; }
+.tl-score { color: var(--ok); }
+.tl-announce { color: var(--faint); font-size: 12.5px; }
+.tl-big { color: var(--accent); font-weight: 600; }
+
+/* 只有自己看得到的记录（偷看这类破例的信息产出） */
+.tl-private {
+  color: #d8c07a;
+  background: #221d0e;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+
+.tl-breach { color: var(--danger); font-weight: 600; }
+.tl-reject { color: var(--faint); font-style: italic; }
+.tl-note { color: var(--faint); font-size: 11.5px; padding-bottom: 4px; }
+
+/* ---------------------------------------------------------------- 编辑弹窗 */
+
+.editmask {
+  position: fixed;
+  inset: 0;
+  z-index: 150;
+  background: rgba(4, 5, 7, .74);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+body.editing .editmask { display: flex; }
+
+.editbox {
+  width: min(500px, 100%);
+  max-height: 100%;
+  overflow-y: auto;
+  background: #101218;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 18px 20px 16px;
+}
+
+.editbox h3 { margin: 0 0 15px; font-size: 15px; font-weight: 600; }
+
+.fld { display: block; font-size: 12.5px; color: var(--dim); margin-bottom: 13px; }
+
+.fld input, .fld textarea {
+  display: block;
+  width: 100%;
+  margin-top: 5px;
+  background: #0b0d11;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.fld input:focus, .fld textarea:focus { outline: none; border-color: var(--gold); }
+
+.avpick { display: flex; gap: 10px; margin-top: 6px; }
+
+.avopt {
+  width: 80px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  cursor: pointer;
+  padding: 6px 5px 3px;
+  text-align: center;
+  transition: border-color .12s, background .12s;
+}
+
+.avopt:hover { border-color: var(--line2); background: var(--panel2); }
+
+.avopt.on {
+  border-color: var(--gold);
+  background: #1e1a10;
+  box-shadow: 0 0 0 1px rgba(201, 162, 39, .3);
+}
+
+.avopt img { height: 78px; max-width: 100%; display: block; margin: 0 auto; filter: drop-shadow(0 3px 5px rgba(0, 0, 0, .6)); }
+.avopt span { display: block; font-size: 10.5px; color: var(--dim); margin-top: 3px; }
+.avopt.on span { color: var(--accent); }
+
+.editfoot { display: flex; align-items: center; gap: 8px; margin-top: 15px; }
+.editfoot .grow { flex: 1; }
+
+/* ---------------------------------------------------------------- 提示 */
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 34px;
+  z-index: 200;
+  max-width: min(640px, 86vw);
+  transform: translateX(-50%) translateY(14px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s, transform .2s;
+  background: rgba(18, 20, 25, .97);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--gold);
+  border-radius: 8px;
+  padding: 10px 16px;
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+
+.toast.show { opacity: 1; transform: translateX(-50%); }
+
+/* ---------------------------------------------------------------- 窄屏 */
+
+@media (max-width: 900px) {
+  body { overflow: hidden; }
+  .rule-desc { display: none; }
+  :root { --drawer: 300px; }
+  .agcard { width: 150px; }
+  .agcard .port { height: 112px; }
+  .agcard .port img { max-height: 102px; }
+  .modes { gap: 8px; width: 100%; }
+  .mode { padding: 13px 16px; font-size: 15px; }
+}

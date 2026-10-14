@@ -1,6 +1,10 @@
 # WorkBuddy 本地数据（记忆 / 配置），禁止上传
 .workbuddy/
 
+# 本地密钥文件：只在自己机器上用，绝不入库
+*.local.json
+*.local.mjs
+
 # 临时文件
 err.txt
 *.log
